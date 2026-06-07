@@ -1,0 +1,42 @@
+@RestauranteAPI_HostAddress = http://localhost:5052
+
+GET {{RestauranteAPI_HostAddress}}/todos/
+Accept: application/json
+
+###
+
+GET {{RestauranteAPI_HostAddress}}/todos/1
+Accept: application/json
+
+
+###
+// GET Mesas
+GET {{RestauranteAPI_HostAddress}}/api/mesas/
+
+###
+// GET Mesa por ID
+GET {{RestauranteAPI_HostAddress}}/api/mesas/numero/4
+
+###
+// POST Nueva Mesa
+POST {{RestauranteAPI_HostAddress}}/api/mesas/
+
+###
+PUT {{RestauranteAPI_HostAddress}}/api/mesas/numero/1
+{
+    "numero": 1,
+    "capacidad": 4,
+    "estado": "Disponible"
+}
+
+### 
+GET {{RestauranteAPI_HostAddress}}/api/mesas/capacidad/0
+
+###
+GET {{RestauranteAPI_HostAddress}}/api/mesas/1/disponibilidad
+
+
+###
+GET {{RestauranteAPI_HostAddress}}/api/turnos/
+
+### 
