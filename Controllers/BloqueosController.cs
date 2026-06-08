@@ -34,8 +34,6 @@ namespace RestauranteAPI.Controllers
             return Ok(bloqueo);
         }
 
-        
-
         // PUT: api/bloqueos/5
         [HttpPut("{id}")]
         public ActionResult<BloqueoResponseDTO> ActualizarBloqueo(int id, [FromBody] BloqueoCreateDTO bloqueoDTO)
