@@ -92,7 +92,7 @@ namespace RestauranteAPI.Services.Implementations
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            string secret = _configuration["Jwt:Secret"] ?? "SuperSecretDefaultKeyMustBeLongEnough1234567890!";
+            string secret = _configuration["JwtSettings:SecretKey"] ?? "SuperSecretDefaultKeyMustBeLongEnough1234567890!";
             byte[] key = Encoding.ASCII.GetBytes(secret);
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -105,6 +105,8 @@ namespace RestauranteAPI.Services.Implementations
                     new Claim(ClaimTypes.Email, user.Email)
                 }),
                 Expires = DateTime.UtcNow.AddDays(7),
+                Issuer = _configuration["JwtSettings:Issuer"],
+                Audience = _configuration["JwtSettings:Audience"],
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
                     SecurityAlgorithms.HmacSha256Signature

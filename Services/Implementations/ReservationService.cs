@@ -14,6 +14,14 @@ namespace RestauranteAPI.Services.Implementations
     {
         private readonly MyAppDbContext _context;
 
+        private static readonly Dictionary<string, string> StatusMap = new()
+        {
+            ["Active"] = "Confirmada",
+            ["Pending"] = "Pendiente",
+            ["Completed"] = "Completada",
+            ["Cancelled"] = "Cancelada"
+        };
+
         public ReservationService(MyAppDbContext context)
         {
             _context = context;
@@ -21,82 +29,69 @@ namespace RestauranteAPI.Services.Implementations
 
         public async Task<IEnumerable<ReservationDto>> GetAllAsync()
         {
-            var reservations = await _context.Reservations.ToListAsync();
-            return reservations.Select(r => new ReservationDto
-            {
-                Id = r.Id,
-                Date = r.Date,
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                Capacity = r.GuestCount,
-                ClientId = r.ClientId,
-                TableId = r.TableId,
-                StatusId = r.StatusId,
-                TurnId = r.TurnId
-            });
+            var reservations = await _context.Reservations
+                .Include(r => r.Client)
+                .Include(r => r.Table).ThenInclude(t => t.Zone)
+                .Include(r => r.Status)
+                .Include(r => r.Turn)
+                .ToListAsync();
+
+            return reservations.Select(MapToDto);
         }
 
         public async Task<ReservationDto?> GetByIdAsync(int id)
         {
-            var r = await _context.Reservations.FirstOrDefaultAsync(res => res.Id == id);
-            if (r == null) return null;
+            var r = await _context.Reservations
+                .Include(r => r.Client)
+                .Include(r => r.Table).ThenInclude(t => t.Zone)
+                .Include(r => r.Status)
+                .Include(r => r.Turn)
+                .FirstOrDefaultAsync(res => res.Id == id);
 
-            return new ReservationDto
-            {
-                Id = r.Id,
-                Date = r.Date,
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                Capacity = r.GuestCount,
-                ClientId = r.ClientId,
-                TableId = r.TableId,
-                StatusId = r.StatusId,
-                TurnId = r.TurnId
-            };
+            return r == null ? null : MapToDto(r);
         }
 
-        public async Task<ReservationDto> CreateAsync(ReservationDto rDto)
+        public async Task<ReservationDto> CreateAsync(CreateReservationRequest request)
         {
-            if (rDto.StartTime >= rDto.EndTime)
+            var date = DateOnly.Parse(request.Date);
+            var startTime = TimeOnly.Parse(request.ReservationTime);
+            var endTime = startTime.AddHours(1);
+
+            if (startTime >= endTime)
                 throw new ArgumentException("Start time must be before end time.");
 
-            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == rDto.ClientId);
-            if (client == null)
-                throw new ArgumentException("The specified client does not exist.");
+            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == request.ClientId)
+                ?? throw new ArgumentException("The specified client does not exist.");
 
-            var table = await _context.Tables.FirstOrDefaultAsync(t => t.Id == rDto.TableId);
-            if (table == null)
-                throw new ArgumentException("The specified table does not exist.");
+            var table = await _context.Tables
+                .Include(t => t.Zone)
+                .FirstOrDefaultAsync(t => t.Id == request.TableId)
+                ?? throw new ArgumentException("The specified table does not exist.");
 
-            if (rDto.Capacity <= 0)
-                throw new ArgumentException("Capacity must be greater than zero.");
+            if (request.GuestCount <= 0)
+                throw new ArgumentException("Guest count must be greater than zero.");
 
-            if (rDto.Capacity > table.Capacity)
-                throw new ArgumentException("Capacity exceeds table limit.");
+            if (request.GuestCount > table.Capacity)
+                throw new ArgumentException("Guest count exceeds table capacity.");
 
-            var zone = await _context.Zones.FirstOrDefaultAsync(z => z.Id == table.ZoneId);
-            if (zone == null || !zone.IsAvailable)
+            if (table.Zone == null || !table.Zone.IsAvailable)
                 throw new InvalidOperationException("The zone of the table is not active.");
 
-            var turnValido = await _context.Turns.AnyAsync(t =>
-                t.IsActive &&
-                rDto.StartTime >= t.StartTime &&
-                rDto.EndTime <= t.EndTime
-            );
+            var validTurn = await _context.Turns.AnyAsync(t =>
+                t.IsActive && startTime >= t.StartTime && endTime <= t.EndTime);
 
-            if (!turnValido)
-                throw new InvalidOperationException("Reservation time slot must fall inside a valid open turn.");
+            if (!validTurn)
+                throw new InvalidOperationException("Reservation time must fall inside a valid open turn.");
 
             var isLocked = await _context.TableLocks.AnyAsync(l =>
-                l.TableId == rDto.TableId &&
-                l.Date == rDto.Date &&
-                rDto.StartTime < l.EndTime &&
-                rDto.EndTime > l.StartTime
-            );
+                l.TableId == request.TableId &&
+                l.Date == date &&
+                startTime < l.EndTime &&
+                endTime > l.StartTime);
 
             if (isLocked)
             {
-                await AddToWaitingListAsync(rDto);
+                await AddToWaitingListAsync(request, date, startTime, endTime);
                 throw new InvalidOperationException("The table is currently locked. The client has been placed on the waiting list.");
             }
 
@@ -104,58 +99,52 @@ namespace RestauranteAPI.Services.Implementations
             int cancelledId = cancelledStatus?.Id ?? 4;
 
             var isReserved = await _context.Reservations.AnyAsync(res =>
-                res.TableId == rDto.TableId &&
-                res.Date == rDto.Date &&
+                res.TableId == request.TableId &&
+                res.Date == date &&
                 res.StatusId != cancelledId &&
-                rDto.StartTime < res.EndTime &&
-                rDto.EndTime > res.StartTime
-            );
+                startTime < res.EndTime &&
+                endTime > res.StartTime);
 
             if (isReserved)
             {
-                await AddToWaitingListAsync(rDto);
+                await AddToWaitingListAsync(request, date, startTime, endTime);
                 throw new InvalidOperationException("The table is already reserved. The client has been placed on the waiting list.");
             }
 
             var reservation = new Reservation
             {
-                Date = rDto.Date,
-                StartTime = rDto.StartTime,
-                EndTime = rDto.EndTime,
-                GuestCount = rDto.Capacity,
-                ClientId = rDto.ClientId,
-                TableId = rDto.TableId,
-                StatusId = rDto.StatusId == 0 ? 2 : rDto.StatusId, // Default to Pending (Id = 2)
-                TurnId = rDto.TurnId == 0 ? 1 : rDto.TurnId // Default to General Turn (Id = 1)
+                Date = date,
+                StartTime = startTime,
+                EndTime = endTime,
+                GuestCount = request.GuestCount,
+                ClientId = request.ClientId,
+                TableId = request.TableId,
+                StatusId = 2,
+                TurnId = 1,
+                CreatedAt = DateTime.UtcNow
             };
 
             await _context.Reservations.AddAsync(reservation);
             await _context.SaveChangesAsync();
 
-            rDto.Id = reservation.Id;
-            rDto.StatusId = reservation.StatusId;
-            rDto.TurnId = reservation.TurnId;
-            return rDto;
+            return (await GetByIdAsync(reservation.Id))!;
         }
 
-        public async Task<ReservationDto?> UpdateAsync(int id, ReservationDto rDto)
+        public async Task<ReservationDto?> UpdateAsync(int id, CreateReservationRequest request)
         {
             var r = await _context.Reservations.FirstOrDefaultAsync(res => res.Id == id);
             if (r == null) return null;
 
-            r.Date = rDto.Date;
-            r.StartTime = rDto.StartTime;
-            r.EndTime = rDto.EndTime;
-            r.GuestCount = rDto.Capacity;
-            r.ClientId = rDto.ClientId;
-            r.TableId = rDto.TableId;
-            r.StatusId = rDto.StatusId;
-            r.TurnId = rDto.TurnId;
+            r.Date = DateOnly.Parse(request.Date);
+            r.StartTime = TimeOnly.Parse(request.ReservationTime);
+            r.EndTime = r.StartTime.AddHours(1);
+            r.GuestCount = request.GuestCount;
+            r.ClientId = request.ClientId;
+            r.TableId = request.TableId;
 
-            _context.Reservations.Update(r);
             await _context.SaveChangesAsync();
 
-            return rDto;
+            return await GetByIdAsync(id);
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -172,40 +161,26 @@ namespace RestauranteAPI.Services.Implementations
         {
             var reservations = await _context.Reservations
                 .Where(r => r.ClientId == clientId)
+                .Include(r => r.Client)
+                .Include(r => r.Table).ThenInclude(t => t.Zone)
+                .Include(r => r.Status)
+                .Include(r => r.Turn)
                 .ToListAsync();
 
-            return reservations.Select(r => new ReservationDto
-            {
-                Id = r.Id,
-                Date = r.Date,
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                Capacity = r.GuestCount,
-                ClientId = r.ClientId,
-                TableId = r.TableId,
-                StatusId = r.StatusId,
-                TurnId = r.TurnId
-            });
+            return reservations.Select(MapToDto);
         }
 
         public async Task<IEnumerable<ReservationDto>> GetByDateAsync(DateOnly date)
         {
             var reservations = await _context.Reservations
                 .Where(r => r.Date == date)
+                .Include(r => r.Client)
+                .Include(r => r.Table).ThenInclude(t => t.Zone)
+                .Include(r => r.Status)
+                .Include(r => r.Turn)
                 .ToListAsync();
 
-            return reservations.Select(r => new ReservationDto
-            {
-                Id = r.Id,
-                Date = r.Date,
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                Capacity = r.GuestCount,
-                ClientId = r.ClientId,
-                TableId = r.TableId,
-                StatusId = r.StatusId,
-                TurnId = r.TurnId
-            });
+            return reservations.Select(MapToDto);
         }
 
         public async Task<ReservationDto?> UpdateStatusAsync(int id, int statusId)
@@ -218,32 +193,40 @@ namespace RestauranteAPI.Services.Implementations
                 throw new ArgumentException("The specified status does not exist.");
 
             r.StatusId = statusId;
-            _context.Reservations.Update(r);
             await _context.SaveChangesAsync();
 
+            return await GetByIdAsync(id);
+        }
+
+        private ReservationDto MapToDto(Reservation r)
+        {
             return new ReservationDto
             {
                 Id = r.Id,
-                Date = r.Date,
-                StartTime = r.StartTime,
-                EndTime = r.EndTime,
-                Capacity = r.GuestCount,
+                Date = r.Date.ToString("yyyy-MM-dd"),
+                ReservationTime = r.StartTime.ToString("HH:mm"),
+                GuestCount = r.GuestCount,
+                Status = StatusMap.GetValueOrDefault(r.Status?.Name ?? "", r.Status?.Name ?? ""),
+                CreatedAt = r.CreatedAt.ToString("o"),
                 ClientId = r.ClientId,
+                ClientName = r.Client != null ? $"{r.Client.FirstName} {r.Client.LastName}" : "",
                 TableId = r.TableId,
-                StatusId = r.StatusId,
-                TurnId = r.TurnId
+                TableNumber = r.Table?.TableNumber ?? "",
+                ZoneName = r.Table?.Zone?.Name ?? "",
+                TurnId = r.TurnId,
+                TurnName = r.Turn?.Name ?? ""
             };
         }
 
-        private async Task AddToWaitingListAsync(ReservationDto rDto)
+        private async Task AddToWaitingListAsync(CreateReservationRequest request, DateOnly date, TimeOnly startTime, TimeOnly endTime)
         {
             var wEntry = new WaitingListEntry
             {
-                ClientId = rDto.ClientId,
-                Date = rDto.Date,
-                StartTime = rDto.StartTime,
-                EndTime = rDto.EndTime,
-                PartySize = rDto.Capacity,
+                ClientId = request.ClientId,
+                Date = date,
+                StartTime = startTime,
+                EndTime = endTime,
+                PartySize = request.GuestCount,
                 Status = "Waiting"
             };
             await _context.WaitingLists.AddAsync(wEntry);

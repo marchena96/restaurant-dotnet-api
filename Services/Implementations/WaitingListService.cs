@@ -14,6 +14,20 @@ namespace RestauranteAPI.Services.Implementations
     {
         private readonly MyAppDbContext _context;
 
+        private static readonly Dictionary<string, string> StatusToDb = new()
+        {
+            ["EnEspera"] = "Waiting",
+            ["Asignado"] = "Assigned",
+            ["Cancelado"] = "Cancelled"
+        };
+
+        private static readonly Dictionary<string, string> StatusFromDb = new()
+        {
+            ["Waiting"] = "EnEspera",
+            ["Assigned"] = "Asignado",
+            ["Cancelled"] = "Cancelado"
+        };
+
         public WaitingListService(MyAppDbContext context)
         {
             _context = context;
@@ -21,34 +35,18 @@ namespace RestauranteAPI.Services.Implementations
 
         public async Task<IEnumerable<WaitingListDto>> GetAllAsync()
         {
-            var entries = await _context.WaitingLists.ToListAsync();
-            return entries.Select(w => new WaitingListDto
-            {
-                Id = w.Id,
-                Date = w.Date,
-                StartTime = w.StartTime,
-                EndTime = w.EndTime,
-                Quantity = w.PartySize,
-                ClientId = w.ClientId,
-                Status = w.Status
-            });
+            var entries = await _context.WaitingLists
+                .Include(w => w.Client)
+                .ToListAsync();
+            return entries.Select(MapToDto);
         }
 
         public async Task<WaitingListDto?> GetByIdAsync(int id)
         {
-            var w = await _context.WaitingLists.FirstOrDefaultAsync(entry => entry.Id == id);
-            if (w == null) return null;
-
-            return new WaitingListDto
-            {
-                Id = w.Id,
-                Date = w.Date,
-                StartTime = w.StartTime,
-                EndTime = w.EndTime,
-                Quantity = w.PartySize,
-                ClientId = w.ClientId,
-                Status = w.Status
-            };
+            var w = await _context.WaitingLists
+                .Include(w => w.Client)
+                .FirstOrDefaultAsync(entry => entry.Id == id);
+            return w == null ? null : MapToDto(w);
         }
 
         public async Task<WaitingListDto> CreateAsync(WaitingListDto wDto)
@@ -63,34 +61,34 @@ namespace RestauranteAPI.Services.Implementations
                 Date = wDto.Date,
                 StartTime = wDto.StartTime,
                 EndTime = wDto.EndTime,
-                PartySize = wDto.Quantity,
-                Status = "Waiting"
+                PartySize = wDto.PartySize,
+                Status = "Waiting",
+                PreferredZone = wDto.PreferredZone
             };
 
             await _context.WaitingLists.AddAsync(entry);
             await _context.SaveChangesAsync();
 
-            wDto.Id = entry.Id;
-            wDto.Status = entry.Status;
-            return wDto;
+            return (await GetByIdAsync(entry.Id))!;
         }
 
         public async Task<WaitingListDto?> UpdateAsync(int id, WaitingListDto wDto)
         {
-            var w = await _context.WaitingLists.FirstOrDefaultAsync(entry => entry.Id == id);
+            var w = await _context.WaitingLists
+                .Include(w => w.Client)
+                .FirstOrDefaultAsync(entry => entry.Id == id);
             if (w == null) return null;
 
             w.Date = wDto.Date;
             w.StartTime = wDto.StartTime;
             w.EndTime = wDto.EndTime;
-            w.PartySize = wDto.Quantity;
+            w.PartySize = wDto.PartySize;
             w.ClientId = wDto.ClientId;
             w.Status = wDto.Status;
+            w.PreferredZone = wDto.PreferredZone;
 
-            _context.WaitingLists.Update(w);
             await _context.SaveChangesAsync();
-
-            return wDto;
+            return MapToDto(w);
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -103,9 +101,26 @@ namespace RestauranteAPI.Services.Implementations
             return true;
         }
 
+        public async Task<WaitingListDto?> UpdateStatusAsync(int id, string status)
+        {
+            var w = await _context.WaitingLists
+                .Include(w => w.Client)
+                .FirstOrDefaultAsync(entry => entry.Id == id);
+            if (w == null) return null;
+
+            if (!StatusToDb.TryGetValue(status, out var dbStatus))
+                throw new ArgumentException($"Invalid status: {status}. Valid values: EnEspera, Asignado, Cancelado.");
+
+            w.Status = dbStatus;
+            await _context.SaveChangesAsync();
+            return MapToDto(w);
+        }
+
         public async Task<bool> PromoteToReservationAsync(int waitingListId, int tableId)
         {
-            var entry = await _context.WaitingLists.FirstOrDefaultAsync(w => w.Id == waitingListId);
+            var entry = await _context.WaitingLists
+                .Include(w => w.Client)
+                .FirstOrDefaultAsync(w => w.Id == waitingListId);
             if (entry == null)
                 throw new ArgumentException($"Waiting list entry with ID {waitingListId} does not exist.");
 
@@ -163,7 +178,7 @@ namespace RestauranteAPI.Services.Implementations
                 GuestCount = entry.PartySize,
                 TableId = tableId,
                 StatusId = activeStatus.Id,
-                TurnId = 1 // Default to general turn
+                TurnId = 1
             };
 
             await _context.Reservations.AddAsync(reservation);
@@ -171,6 +186,27 @@ namespace RestauranteAPI.Services.Implementations
             await _context.SaveChangesAsync();
 
             return true;
+        }
+
+        private WaitingListDto MapToDto(WaitingListEntry w)
+        {
+            return new WaitingListDto
+            {
+                Id = w.Id,
+                Date = w.Date,
+                StartTime = w.StartTime,
+                EndTime = w.EndTime,
+                PartySize = w.PartySize,
+                ClientId = w.ClientId,
+                ClientName = w.Client != null
+                    ? $"{w.Client.FirstName} {w.Client.LastName}".Trim()
+                    : string.Empty,
+                Status = StatusFromDb.TryGetValue(w.Status, out var display)
+                    ? display
+                    : w.Status,
+                ArrivedAt = $"{w.Date:yyyy-MM-dd}T{w.StartTime:HH:mm:ss}",
+                PreferredZone = w.PreferredZone
+            };
         }
     }
 }
