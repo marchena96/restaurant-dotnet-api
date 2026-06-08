@@ -10,6 +10,7 @@ namespace RestauranteAPI.Models
         public TimeOnly EndTime { get; set; }
         public int PartySize { get; set; }
         public string Status { get; set; } = "Waiting"; // Waiting, Assigned, Cancelled
+        public string? PreferredZone { get; set; }
 
         // Relationships
         public int ClientId { get; set; }

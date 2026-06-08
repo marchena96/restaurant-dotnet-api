@@ -10,13 +10,12 @@ namespace RestauranteAPI.Data
         {
             context.Database.EnsureCreated();
 
-            // CLIENTS
+            // CLIENTS (independent)
             if (!context.Clients.Any())
             {
                 context.Clients.AddRange(
                     new Client
                     {
-                        Id = 1,
                         FirstName = "Juan",
                         LastName = "Jimenez",
                         PhoneNumber = "88881111",
@@ -24,7 +23,6 @@ namespace RestauranteAPI.Data
                     },
                     new Client
                     {
-                        Id = 2,
                         FirstName = "Maria",
                         LastName = "Lopez",
                         PhoneNumber = "88882222",
@@ -32,7 +30,6 @@ namespace RestauranteAPI.Data
                     },
                     new Client
                     {
-                        Id = 3,
                         FirstName = "Carlos",
                         LastName = "Fernandez",
                         PhoneNumber = "88883333",
@@ -41,44 +38,23 @@ namespace RestauranteAPI.Data
                 );
             }
 
-            // ZONES
+            // ZONES (independent, referenced by Tables)
             if (!context.Zones.Any())
             {
                 context.Zones.AddRange(
-                    new Zone
-                    {
-                        Id = 1,
-                        Name = "Terrace",
-                        IsAvailable = true
-                    },
-                    new Zone
-                    {
-                        Id = 2,
-                        Name = "VIP",
-                        IsAvailable = true
-                    },
-                    new Zone
-                    {
-                        Id = 3,
-                        Name = "Indoor",
-                        IsAvailable = true
-                    },
-                    new Zone
-                    {
-                        Id = 4,
-                        Name = "Outdoor",
-                        IsAvailable = true
-                    }
+                    new Zone { Name = "Terrace", IsAvailable = true },
+                    new Zone { Name = "VIP", IsAvailable = true },
+                    new Zone { Name = "Indoor", IsAvailable = true },
+                    new Zone { Name = "Outdoor", IsAvailable = true }
                 );
             }
 
-            // TURNS
+            // TURNS (independent)
             if (!context.Turns.Any())
             {
                 context.Turns.Add(
                     new Turn
                     {
-                        Id = 1,
                         Name = "General Turn",
                         StartTime = new TimeOnly(8, 0),
                         EndTime = new TimeOnly(23, 0),
@@ -87,37 +63,40 @@ namespace RestauranteAPI.Data
                 );
             }
 
-            // TABLES
+            // Persist independent entities so EF generates their IDs
+            context.SaveChanges();
+
+            // TABLES (depend on Zones — use navigation property)
             if (!context.Tables.Any())
             {
+                var terraceZone = context.Zones.First(z => z.Name == "Terrace");
+                var vipZone = context.Zones.First(z => z.Name == "VIP");
+                var indoorZone = context.Zones.First(z => z.Name == "Indoor");
+
                 context.Tables.AddRange(
                     new Table
                     {
-                        Id = 1,
                         TableNumber = "1",
                         Capacity = 2,
-                        ZoneId = 1
+                        Zone = terraceZone
                     },
                     new Table
                     {
-                        Id = 2,
                         TableNumber = "2",
                         Capacity = 4,
-                        ZoneId = 1
+                        Zone = terraceZone
                     },
                     new Table
                     {
-                        Id = 3,
                         TableNumber = "3",
                         Capacity = 6,
-                        ZoneId = 2
+                        Zone = vipZone
                     },
                     new Table
                     {
-                        Id = 4,
                         TableNumber = "4",
                         Capacity = 8,
-                        ZoneId = 3
+                        Zone = indoorZone
                     }
                 );
             }
@@ -128,11 +107,10 @@ namespace RestauranteAPI.Data
                 context.Users.Add(
                     new User
                     {
-                        Id = 1,
                         Username = "admin",
                         FullName = "Administrator",
                         Email = "admin@restaurant.com",
-                        PasswordHash = "AQAAAAEAACcQAAAAEGlvbmVlL3Bhc3N3b3Jk", // dummy hash
+                        PasswordHash = "AQAAAAEAACcQAAAAEGlvbmVlL3Bhc3N3b3Jk",
                         Role = "Admin"
                     }
                 );

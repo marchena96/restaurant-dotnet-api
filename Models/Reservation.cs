@@ -9,6 +9,7 @@ namespace RestauranteAPI.Models
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
         public int GuestCount { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Relationships
         public int ClientId { get; set; }

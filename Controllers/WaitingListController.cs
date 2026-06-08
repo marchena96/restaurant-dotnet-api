@@ -65,6 +65,22 @@ namespace RestauranteAPI.Controllers
             return NoContent();
         }
 
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequest request)
+        {
+            try
+            {
+                var updated = await _waitingListService.UpdateStatusAsync(id, request.Status);
+                if (updated == null)
+                    return NotFound(new { message = $"Waiting list entry with ID {id} not found." });
+                return Ok(updated);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("{id}/promote/{tableId}")]
         public async Task<IActionResult> PromoteToReservation(int id, int tableId)
         {

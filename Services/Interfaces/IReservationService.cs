@@ -9,8 +9,8 @@ namespace RestauranteAPI.Services.Interfaces
     {
         Task<IEnumerable<ReservationDto>> GetAllAsync();
         Task<ReservationDto?> GetByIdAsync(int id);
-        Task<ReservationDto> CreateAsync(ReservationDto reservationDto);
-        Task<ReservationDto?> UpdateAsync(int id, ReservationDto reservationDto);
+        Task<ReservationDto> CreateAsync(CreateReservationRequest request);
+        Task<ReservationDto?> UpdateAsync(int id, CreateReservationRequest request);
         Task<bool> DeleteAsync(int id);
         Task<IEnumerable<ReservationDto>> GetByClientAsync(int clientId);
         Task<IEnumerable<ReservationDto>> GetByDateAsync(DateOnly date);

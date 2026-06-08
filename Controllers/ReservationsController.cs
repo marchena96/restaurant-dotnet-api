@@ -34,11 +34,11 @@ namespace RestauranteAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] ReservationDto reservationDto)
+        public async Task<IActionResult> Create([FromBody] CreateReservationRequest request)
         {
             try
             {
-                var created = await _reservationService.CreateAsync(reservationDto);
+                var created = await _reservationService.CreateAsync(request);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
             catch (Exception ex)
@@ -48,11 +48,11 @@ namespace RestauranteAPI.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] ReservationDto reservationDto)
+        public async Task<IActionResult> Update(int id, [FromBody] CreateReservationRequest request)
         {
             try
             {
-                var updated = await _reservationService.UpdateAsync(id, reservationDto);
+                var updated = await _reservationService.UpdateAsync(id, request);
                 if (updated == null)
                     return NotFound(new { message = $"Reservation with ID {id} not found." });
                 return Ok(updated);

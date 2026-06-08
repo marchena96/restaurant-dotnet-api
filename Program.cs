@@ -12,9 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 string jwtSecret = jwtSettings["SecretKey"] ?? "SuperSecretDefaultKeyMustBeLongEnough1234567890!";
 
-// 2. Configuración del Acceso a Datos (In-Memory para Desarrollo)
+// 2. Configuración del Acceso a Datos (SQL Server)
+var connectionString = builder.Configuration.GetConnectionString("ConnectionSql");
 builder.Services.AddDbContext<MyAppDbContext>(options =>
-    options.UseInMemoryDatabase("RestauranteDb"));
+    options.UseSqlServer(connectionString));
 
 // 3. Inyección de Dependencias (Capa de Servicios en Inglés)
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -78,7 +79,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<MyAppDbContext>();
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
     SeedData.Initialize(context);
 }
 
