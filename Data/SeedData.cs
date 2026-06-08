@@ -1,4 +1,6 @@
-﻿using RestauranteAPI.Entidades;
+﻿using System;
+using System.Linq;
+using RestauranteAPI.Models;
 
 namespace RestauranteAPI.Data
 {
@@ -6,121 +8,132 @@ namespace RestauranteAPI.Data
     {
         public static void Initialize(MyAppDbContext context)
         {
-            // CLIENTES
-            if (!context.Clientes.Any())
+            context.Database.EnsureCreated();
+
+            // CLIENTS
+            if (!context.Clients.Any())
             {
-                context.Clientes.AddRange(
-                    new Cliente
+                context.Clients.AddRange(
+                    new Client
                     {
                         Id = 1,
-                        Nombre = "Juan",
-                        Apellido = "Jimenez",
-                        Telefono = 88881111,
-                        Cedula = 504580546
+                        FirstName = "Juan",
+                        LastName = "Jimenez",
+                        PhoneNumber = "88881111",
+                        IdCard = "504580546"
                     },
-
-                    new Cliente
+                    new Client
                     {
                         Id = 2,
-                        Nombre = "Maria",
-                        Apellido = "Lopez",
-                        Telefono = 88882222,
-                        Cedula = 504580547
+                        FirstName = "Maria",
+                        LastName = "Lopez",
+                        PhoneNumber = "88882222",
+                        IdCard = "504580547"
                     },
-
-                    new Cliente
+                    new Client
                     {
                         Id = 3,
-                        Nombre = "Carlos",
-                        Apellido = "Fernandez",
-                        Telefono = 88883333,
-                        Cedula = 504580548
+                        FirstName = "Carlos",
+                        LastName = "Fernandez",
+                        PhoneNumber = "88883333",
+                        IdCard = "504580548"
                     }
                 );
             }
 
-            // ZONAS
-            if (!context.Zonas.Any())
+            // ZONES
+            if (!context.Zones.Any())
             {
-                context.Zonas.AddRange(
-                    new Zona
+                context.Zones.AddRange(
+                    new Zone
                     {
                         Id = 1,
-                        Nombre = "Terraza",
-                        Disponibilidad = true
+                        Name = "Terrace",
+                        IsAvailable = true
                     },
-
-                    new Zona
+                    new Zone
                     {
                         Id = 2,
-                        Nombre = "VIP",
-                        Disponibilidad = true
+                        Name = "VIP",
+                        IsAvailable = true
                     },
-
-                    new Zona
+                    new Zone
                     {
                         Id = 3,
-                        Nombre = "Interior",
-                        Disponibilidad = true
+                        Name = "Indoor",
+                        IsAvailable = true
                     },
-                    new Zona
+                    new Zone
                     {
                         Id = 4,
-                        Nombre = "Exterior",
-                        Disponibilidad = true
+                        Name = "Outdoor",
+                        IsAvailable = true
                     }
                 );
             }
 
-            // TURNO GENERAL
-            if (!context.Turnos.Any())
+            // TURNS
+            if (!context.Turns.Any())
             {
-                context.Turnos.Add(
-                    new Turno
+                context.Turns.Add(
+                    new Turn
                     {
                         Id = 1,
-                        Nombre = "Turno General",
-                        HoraInicio = new TimeOnly(8, 0),
-                        HoraFin = new TimeOnly(23, 0),
-                        Activo = true
+                        Name = "General Turn",
+                        StartTime = new TimeOnly(8, 0),
+                        EndTime = new TimeOnly(23, 0),
+                        IsActive = true
                     }
                 );
             }
 
-            // MESAS
-            if (!context.Mesas.Any())
+            // TABLES
+            if (!context.Tables.Any())
             {
-                context.Mesas.AddRange(
-                    new Mesa
+                context.Tables.AddRange(
+                    new Table
                     {
                         Id = 1,
-                        Numero = 1,
-                        Capacidad = 2,
-                        ZonaId = 1
+                        TableNumber = "1",
+                        Capacity = 2,
+                        ZoneId = 1
                     },
-
-                    new Mesa
+                    new Table
                     {
                         Id = 2,
-                        Numero = 2,
-                        Capacidad = 4,
-                        ZonaId = 1
+                        TableNumber = "2",
+                        Capacity = 4,
+                        ZoneId = 1
                     },
-
-                    new Mesa
+                    new Table
                     {
                         Id = 3,
-                        Numero = 3,
-                        Capacidad = 6,
-                        ZonaId = 2
+                        TableNumber = "3",
+                        Capacity = 6,
+                        ZoneId = 2
                     },
-
-                    new Mesa
+                    new Table
                     {
                         Id = 4,
-                        Numero = 4,
-                        Capacidad = 8,
-                        ZonaId = 3
+                        TableNumber = "4",
+                        Capacity = 8,
+                        ZoneId = 3
+                    }
+                );
+            }
+
+            // SEED USER (Admin)
+            if (!context.Users.Any())
+            {
+                context.Users.Add(
+                    new User
+                    {
+                        Id = 1,
+                        Username = "admin",
+                        FullName = "Administrator",
+                        Email = "admin@restaurant.com",
+                        PasswordHash = "AQAAAAEAACcQAAAAEGlvbmVlL3Bhc3N3b3Jk", // dummy hash
+                        Role = "Admin"
                     }
                 );
             }

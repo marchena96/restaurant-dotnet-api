@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RestauranteAPI.Entidades;
+using RestauranteAPI.Models;
 
 namespace RestauranteAPI.Data
 {
@@ -9,48 +9,92 @@ namespace RestauranteAPI.Data
         {
         }
 
-        public DbSet<Estado> Estados { get; set; } = null!;
-        public DbSet<ListaEspera> ListaEspera { get; set; } = null!;
-        public DbSet<Zona> Zonas { get; set; } = null!;
-        public DbSet<Mesa> Mesas { get; set; } = null!;
-        public DbSet<Cliente> Clientes { get; set; } = null!;
-        public DbSet<Reserva> Reservas { get; set; } = null!;
-        public DbSet<Bloqueo> Bloqueos { get; set; } = null!;
-        public DbSet<Turno> Turnos { get; set; } = null!;
+        public DbSet<Client> Clients { get; set; } = null!;
+        public DbSet<Reservation> Reservations { get; set; } = null!;
+        public DbSet<WaitingListEntry> WaitingLists { get; set; } = null!;
+        public DbSet<Table> Tables { get; set; } = null!;
+        public DbSet<Zone> Zones { get; set; } = null!;
+        public DbSet<Status> Statuses { get; set; } = null!;
+        public DbSet<TableLock> TableLocks { get; set; } = null!;
+        public DbSet<Turn> Turns { get; set; } = null!;
+        public DbSet<User> Users { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Mesa>()
-                .HasOne<Zona>()
-                .WithMany()
-                .HasForeignKey(m => m.ZonaId);
+            base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Reserva>()
-                .HasOne<Cliente>()
-                .WithMany()
-                .HasForeignKey(r => r.ClienteId);
+            // Client Constraints & Indexes
+            modelBuilder.Entity<Client>()
+                .HasIndex(c => c.IdCard)
+                .IsUnique();
 
-            modelBuilder.Entity<ListaEspera>()
-                .HasOne<Cliente>()
-                .WithMany()
-                .HasForeignKey(le => le.ClienteId);
+            // User Constraints & Indexes
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
 
-            modelBuilder.Entity<Reserva>()
-                .HasOne<Mesa>()
-                .WithMany()
-                .HasForeignKey(r => r.MesaId);
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
 
-            modelBuilder.Entity<Bloqueo>()
-                .HasOne<Mesa>()
-                .WithMany()
-                .HasForeignKey(b => b.MesaId);
+            // 1:N relationships with DeleteBehavior.Restrict
 
-            modelBuilder.Entity<Reserva>()
-                .HasOne<Estado>()
-                .WithMany()
-                .HasForeignKey(r => r.EstadoId);
+            // Zone -> Table
+            modelBuilder.Entity<Table>()
+                .HasOne(t => t.Zone)
+                .WithMany(z => z.Tables)
+                .HasForeignKey(t => t.ZoneId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-           
+            // Client -> Reservation
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Client)
+                .WithMany(c => c.Reservations)
+                .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Client -> WaitingList
+            modelBuilder.Entity<WaitingListEntry>()
+                .HasOne(w => w.Client)
+                .WithMany(c => c.WaitingListEntries)
+                .HasForeignKey(w => w.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Table -> Reservation
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Table)
+                .WithMany(t => t.Reservations)
+                .HasForeignKey(r => r.TableId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Table -> TableLock
+            modelBuilder.Entity<TableLock>()
+                .HasOne(tl => tl.Table)
+                .WithMany(t => t.TableLocks)
+                .HasForeignKey(tl => tl.TableId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Status -> Reservation
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Status)
+                .WithMany(s => s.Reservations)
+                .HasForeignKey(r => r.StatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Turn -> Reservation
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.Turn)
+                .WithMany(t => t.Reservations)
+                .HasForeignKey(r => r.TurnId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Data Seeding for Statuses in English
+            modelBuilder.Entity<Status>().HasData(
+                new Status { Id = 1, Name = "Active" },
+                new Status { Id = 2, Name = "Pending" },
+                new Status { Id = 3, Name = "Completed" },
+                new Status { Id = 4, Name = "Cancelled" }
+            );
         }
     }
 }
