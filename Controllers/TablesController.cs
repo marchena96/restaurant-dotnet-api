@@ -7,7 +7,6 @@ namespace RestauranteAPI.Controllers
 {
     [Route("api/tables")]
     [ApiController]
-    [Authorize]
     public class TablesController : ControllerBase
     {
         private readonly ITableService _tableService;
@@ -19,6 +18,7 @@ namespace RestauranteAPI.Controllers
             _zoneService = zoneService;
         }
 
+        [AllowAnonymous]
         [HttpGet("layout")]
         public async Task<IActionResult> GetLayout()
         {
@@ -47,6 +47,7 @@ namespace RestauranteAPI.Controllers
             });
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -54,6 +55,7 @@ namespace RestauranteAPI.Controllers
             return Ok(tables);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -63,6 +65,7 @@ namespace RestauranteAPI.Controllers
             return Ok(table);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateTableRequest request)
         {
@@ -77,6 +80,7 @@ namespace RestauranteAPI.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CreateTableRequest request)
         {
@@ -86,6 +90,7 @@ namespace RestauranteAPI.Controllers
             return Ok(updated);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -95,6 +100,7 @@ namespace RestauranteAPI.Controllers
             return NoContent();
         }
 
+        [AllowAnonymous]
         [HttpGet("available")]
         public async Task<IActionResult> GetAvailable(
             [FromQuery] DateOnly date,
@@ -105,6 +111,7 @@ namespace RestauranteAPI.Controllers
             return Ok(tables);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}/availability")]
         public async Task<IActionResult> CheckAvailability(
             int id,
@@ -116,6 +123,7 @@ namespace RestauranteAPI.Controllers
             return Ok(new { tableId = id, isAvailable = available });
         }
 
+        [AllowAnonymous]
         [HttpGet("number/{tableNumber}")]
         public async Task<IActionResult> GetByNumber(string tableNumber)
         {

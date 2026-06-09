@@ -7,7 +7,6 @@ namespace RestauranteAPI.Controllers
 {
     [Route("api/turns")]
     [ApiController]
-    [Authorize]
     public class TurnsController : ControllerBase
     {
         private readonly ITurnService _turnService;
@@ -17,6 +16,7 @@ namespace RestauranteAPI.Controllers
             _turnService = turnService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -24,6 +24,7 @@ namespace RestauranteAPI.Controllers
             return Ok(turns);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -33,6 +34,7 @@ namespace RestauranteAPI.Controllers
             return Ok(turn);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] TurnDto turnDto)
         {
@@ -40,6 +42,7 @@ namespace RestauranteAPI.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] TurnDto turnDto)
         {
@@ -49,6 +52,7 @@ namespace RestauranteAPI.Controllers
             return Ok(updated);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

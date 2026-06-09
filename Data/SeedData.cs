@@ -110,7 +110,10 @@ namespace RestauranteAPI.Data
                         Username = "admin",
                         FullName = "Administrator",
                         Email = "admin@restaurant.com",
-                        PasswordHash = "AQAAAAEAACcQAAAAEGlvbmVlL3Bhc3N3b3Jk",
+                        // Generamos el hash de BCrypt dinámicamente aquí mismo:
+                        // It's deprecated to hardcode the hash, we should generate it at runtime to ensure it's correct and secure.
+                        // PasswordHash = "AQAAAAEAACcQAAAAEGlvbmVlL3Bhc3N3b3Jk",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                         Role = "Admin"
                     }
                 );
