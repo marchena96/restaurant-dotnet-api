@@ -43,7 +43,7 @@ namespace RestauranteAPI.Controllers
                 return Unauthorized(new { message = ex.Message });
             }
         }
-
+            
         [AllowAnonymous]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto registerDto)

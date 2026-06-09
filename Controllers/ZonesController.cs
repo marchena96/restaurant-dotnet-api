@@ -7,7 +7,6 @@ namespace RestauranteAPI.Controllers
 {
     [Route("api/zones")]
     [ApiController]
-    [Authorize]
     public class ZonesController : ControllerBase
     {
         private readonly IZoneService _zoneService;
@@ -17,6 +16,7 @@ namespace RestauranteAPI.Controllers
             _zoneService = zoneService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -24,6 +24,7 @@ namespace RestauranteAPI.Controllers
             return Ok(zones);
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -33,6 +34,7 @@ namespace RestauranteAPI.Controllers
             return Ok(zone);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ZoneDto zoneDto)
         {
@@ -40,6 +42,7 @@ namespace RestauranteAPI.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ZoneDto zoneDto)
         {
@@ -49,6 +52,7 @@ namespace RestauranteAPI.Controllers
             return Ok(updated);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
