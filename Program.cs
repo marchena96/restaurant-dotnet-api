@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RestauranteAPI.Data;
+using RestauranteAPI.Middleware;
 using RestauranteAPI.Services.Implementations;
 using RestauranteAPI.Services.Interfaces;
 
@@ -84,6 +85,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 // 7. Pipeline de Middlewares (El orden estricto garantiza la seguridad)
+app.UseGlobalExceptionMiddleware();
+
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();

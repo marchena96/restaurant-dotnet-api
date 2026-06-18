@@ -21,27 +21,20 @@ namespace RestauranteAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            try
+            var result = await _authService.LoginAsync(loginDto);
+
+            var cookieOptions = new CookieOptions
             {
-                var result = await _authService.LoginAsync(loginDto);
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7),
+                Path = "/"
+            };
 
-                var cookieOptions = new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddDays(7),
-                    Path = "/"
-                };
+            Response.Cookies.Append("jwt", result.Token, cookieOptions);
 
-                Response.Cookies.Append("jwt", result.Token, cookieOptions);
-
-                return Ok(result.User);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(new { message = ex.Message });
-            }
+            return Ok(result.User);
         }
             
         [AllowAnonymous]

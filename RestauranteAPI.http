@@ -1,42 +1,340 @@
-@RestauranteAPI_HostAddress = http://localhost:5052
+@Host = http://localhost:5052
 
-GET {{RestauranteAPI_HostAddress}}/todos/
-Accept: application/json
+### ==========================================
+### AUTENTICACIÓN
+### ==========================================
 
-###
+### 1. LOGIN (público)
+POST {{Host}}/api/auth/login
+Content-Type: application/json
 
-GET {{RestauranteAPI_HostAddress}}/todos/1
-Accept: application/json
-
-
-###
-// GET Mesas
-GET {{RestauranteAPI_HostAddress}}/api/mesas/
-
-###
-// GET Mesa por ID
-GET {{RestauranteAPI_HostAddress}}/api/mesas/numero/4
-
-###
-// POST Nueva Mesa
-POST {{RestauranteAPI_HostAddress}}/api/mesas/
-
-###
-PUT {{RestauranteAPI_HostAddress}}/api/mesas/numero/1
 {
-    "numero": 1,
-    "capacidad": 4,
-    "estado": "Disponible"
+  "username": "admin",
+  "password": "admin"
 }
 
-### 
-GET {{RestauranteAPI_HostAddress}}/api/mesas/capacidad/0
+### 2. REGISTER (público)
+POST {{Host}}/api/auth/register
+Content-Type: application/json
 
-###
-GET {{RestauranteAPI_HostAddress}}/api/mesas/1/disponibilidad
+{
+  "username": "empleado1",
+  "password": "123456",
+  "fullName": "Empleado Uno",
+  "email": "empleado1@restaurante.com",
+  "role": "Employee"
+}
 
+### 3. LOGOUT
+POST {{Host}}/api/auth/logout
 
-###
-GET {{RestauranteAPI_HostAddress}}/api/turnos/
+### 4. GET ME
+GET {{Host}}/api/auth/me
 
-### 
+### ==========================================
+### TABLAS
+### ==========================================
+
+### 5. Layout completo del restaurante (público)
+GET {{Host}}/api/tables/layout
+
+### 6. Todas las tablas (público)
+GET {{Host}}/api/tables
+
+### 7. Tabla por ID (público)
+GET {{Host}}/api/tables/1
+
+### 8. Tabla por número (público)
+GET {{Host}}/api/tables/number/4
+
+### 9. Mesas disponibles por fecha y hora (público)
+GET {{Host}}/api/tables/available?date=2026-06-08&startTime=18:00&endTime=22:00
+
+### 10. Disponibilidad de mesa específica (público)
+GET {{Host}}/api/tables/1/availability?date=2026-06-08&startTime=18:00&endTime=22:00
+
+### 11. Crear mesa (Admin)
+POST {{Host}}/api/tables
+Content-Type: application/json
+
+{
+  "tableNumber": "10",
+  "capacity": 6,
+  "zoneId": 1
+}
+
+### 12. Actualizar mesa (Admin)
+PUT {{Host}}/api/tables/1
+Content-Type: application/json
+
+{
+  "tableNumber": "1",
+  "capacity": 4,
+  "zoneId": 1
+}
+
+### 13. Eliminar mesa (Admin)
+DELETE {{Host}}/api/tables/1
+
+### ==========================================
+### ZONAS
+### ==========================================
+
+### 14. Todas las zonas (público)
+GET {{Host}}/api/zones
+
+### 15. Zona por ID (público)
+GET {{Host}}/api/zones/1
+
+### 16. Crear zona (Admin)
+POST {{Host}}/api/zones
+Content-Type: application/json
+
+{
+  "name": "Terraza"
+}
+
+### 17. Actualizar zona (Admin)
+PUT {{Host}}/api/zones/2
+Content-Type: application/json
+
+{
+  "name": "Salón Principal"
+}
+
+### 18. Eliminar zona (Admin)
+DELETE {{Host}}/api/zones/2
+
+### ==========================================
+### TURNOS
+### ==========================================
+
+### 19. Todos los turnos (público)
+GET {{Host}}/api/turns
+
+### 20. Turno por ID (público)
+GET {{Host}}/api/turns/1
+
+### 21. Crear turno (Admin)
+POST {{Host}}/api/turns
+Content-Type: application/json
+
+{
+  "name": "Cena",
+  "startTime": "18:00:00",
+  "endTime": "23:00:00"
+}
+
+### 22. Actualizar turno (Admin)
+PUT {{Host}}/api/turns/1
+Content-Type: application/json
+
+{
+  "name": "Almuerzo",
+  "startTime": "11:00:00",
+  "endTime": "15:00:00"
+}
+
+### 23. Eliminar turno (Admin)
+DELETE {{Host}}/api/turns/1
+
+### ==========================================
+### CLIENTES (requiere auth)
+### ==========================================
+
+### 24. Todos los clientes
+GET {{Host}}/api/clients
+
+### 25. Cliente por ID
+GET {{Host}}/api/clients/1
+
+### 26. Crear cliente
+POST {{Host}}/api/clients
+Content-Type: application/json
+
+{
+  "firstName": "Juan",
+  "lastName": "Pérez",
+  "phoneNumber": "8888-5555",
+  "idCard": "504580546"
+}
+
+### 27. Actualizar cliente
+PUT {{Host}}/api/clients/1
+Content-Type: application/json
+
+{
+  "firstName": "Juan Carlos",
+  "lastName": "Pérez",
+  "phoneNumber": "8888-5555",
+  "idCard": "504580546"
+}
+
+### 28. Eliminar cliente
+DELETE {{Host}}/api/clients/1
+
+### ==========================================
+### RESERVACIONES (requiere auth)
+### ==========================================
+
+### 29. Todas las reservaciones
+GET {{Host}}/api/reservations
+
+### 30. Reservación por ID
+GET {{Host}}/api/reservations/1
+
+### 31. Reservaciones por cliente
+GET {{Host}}/api/reservations/client/1
+
+### 32. Reservaciones por fecha
+GET {{Host}}/api/reservations/date/2026-06-08
+
+### 33. Crear reservación
+POST {{Host}}/api/reservations
+Content-Type: application/json
+
+{
+  "clientId": 1,
+  "tableId": 1,
+  "date": "2026-06-08",
+  "reservationTime": "19:00",
+  "guestCount": 4
+}
+
+### 34. Actualizar reservación
+PUT {{Host}}/api/reservations/1
+Content-Type: application/json
+
+{
+  "clientId": 1,
+  "tableId": 2,
+  "date": "2026-06-08",
+  "reservationTime": "20:00",
+  "guestCount": 6
+}
+
+### 35. Cambiar estado de reservación
+PUT {{Host}}/api/reservations/1/status/2
+
+### 36. Eliminar reservación
+DELETE {{Host}}/api/reservations/1
+
+### ==========================================
+### ESTADOS (requiere auth)
+### ==========================================
+
+### 37. Todos los estados
+GET {{Host}}/api/statuses
+
+### 38. Estado por ID
+GET {{Host}}/api/statuses/1
+
+### 39. Crear estado
+POST {{Host}}/api/statuses
+Content-Type: application/json
+
+{
+  "name": "Pendiente"
+}
+
+### 40. Actualizar estado
+PUT {{Host}}/api/statuses/1
+Content-Type: application/json
+
+{
+  "name": "Confirmada"
+}
+
+### 41. Eliminar estado
+DELETE {{Host}}/api/statuses/1
+
+### ==========================================
+### LISTA DE ESPERA (requiere auth)
+### ==========================================
+
+### 42. Toda la lista de espera
+GET {{Host}}/api/waitinglist
+
+### 43. Entrada por ID
+GET {{Host}}/api/waitinglist/1
+
+### 44. Crear entrada en lista de espera
+POST {{Host}}/api/waitinglist
+Content-Type: application/json
+
+{
+  "date": "2026-06-08",
+  "startTime": "18:00:00",
+  "endTime": "22:00:00",
+  "partySize": 4,
+  "clientId": 1,
+  "status": "Waiting",
+  "preferredZone": "Terraza"
+}
+
+### 45. Actualizar entrada
+PUT {{Host}}/api/waitinglist/1
+Content-Type: application/json
+
+{
+  "date": "2026-06-08",
+  "startTime": "19:00:00",
+  "endTime": "22:00:00",
+  "partySize": 5,
+  "clientId": 1,
+  "status": "Waiting",
+  "preferredZone": "Salón"
+}
+
+### 46. Actualizar estado
+PATCH {{Host}}/api/waitinglist/1/status
+Content-Type: application/json
+
+{
+  "status": "Seated"
+}
+
+### 47. Promover a reservación (asigna mesa)
+POST {{Host}}/api/waitinglist/1/promote/3
+
+### 48. Eliminar entrada
+DELETE {{Host}}/api/waitinglist/1
+
+### ==========================================
+### BLOQUEOS DE MESAS (requiere auth)
+### ==========================================
+
+### 49. Todos los bloqueos
+GET {{Host}}/api/tablelocks
+
+### 50. Bloqueo por ID
+GET {{Host}}/api/tablelocks/1
+
+### 51. Crear bloqueo
+POST {{Host}}/api/tablelocks
+Content-Type: application/json
+
+{
+  "tableId": 1,
+  "date": "2026-06-08",
+  "turnId": 1,
+  "startTime": "18:00:00",
+  "endTime": "20:00:00",
+  "reason": "Mantenimiento"
+}
+
+### 52. Actualizar bloqueo
+PUT {{Host}}/api/tablelocks/1
+Content-Type: application/json
+
+{
+  "tableId": 1,
+  "date": "2026-06-08",
+  "turnId": 1,
+  "startTime": "19:00:00",
+  "endTime": "21:00:00",
+  "reason": "Evento privado"
+}
+
+### 53. Eliminar bloqueo
+DELETE {{Host}}/api/tablelocks/1
