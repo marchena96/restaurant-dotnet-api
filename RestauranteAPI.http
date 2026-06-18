@@ -307,6 +307,7 @@ DELETE {{Host}}/api/waitinglist/1
 ### 49. Todos los bloqueos
 GET {{Host}}/api/tablelocks
 
+
 ### 50. Bloqueo por ID
 GET {{Host}}/api/tablelocks/1
 
