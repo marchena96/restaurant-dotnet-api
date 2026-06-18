@@ -23,18 +23,7 @@ namespace RestauranteAPI.Controllers
         {
             var result = await _authService.LoginAsync(loginDto);
 
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7),
-                Path = "/"
-            };
-
-            Response.Cookies.Append("jwt", result.Token, cookieOptions);
-
-            return Ok(result.User);
+            return Ok(result);
         }
             
         [AllowAnonymous]
@@ -61,13 +50,6 @@ namespace RestauranteAPI.Controllers
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            Response.Cookies.Delete("jwt", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            });
             return Ok(new { message = "Logged out successfully." });
         }
 

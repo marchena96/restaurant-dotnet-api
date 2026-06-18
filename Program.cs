@@ -29,7 +29,7 @@ builder.Services.AddScoped<ITurnService, TurnService>();
 builder.Services.AddScoped<ILockService, LockService>();
 builder.Services.AddScoped<IWaitingListService, WaitingListService>();
 
-// 4. Configuración de Autenticación JWT mediante Cookies HttpOnly
+// 4. Configuración de Autenticación JWT mediante Bearer header
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -44,19 +44,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
 
-        // Interceptor para extraer el token desde la Cookie segura en lugar del Header
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                string? token = context.Request.Cookies["jwt"];
-                if (!string.IsNullOrEmpty(token))
-                {
-                    context.Token = token;
-                }
-                return Task.CompletedTask;
-            }
-        };
+        // El token se lee automaticamente del header Authorization: Bearer <token>
     });
 
 builder.Services.AddAuthorization();
