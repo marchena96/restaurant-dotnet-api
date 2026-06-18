@@ -35,17 +35,10 @@ namespace RestauranteAPI.Controllers
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
 
-            var tablesTask = _tableService.GetAllAsync();
-            var zonesTask = _zoneService.GetAllAsync();
-            var reservationsTask = _reservationService.GetByDateAsync(today);
-            var waitingListTask = _waitingListService.GetAllAsync();
-
-            await Task.WhenAll(tablesTask, zonesTask, reservationsTask, waitingListTask);
-
-            var tables = tablesTask.Result.ToList();
-            var zones = zonesTask.Result.ToList();
-            var reservations = reservationsTask.Result.ToList();
-            var waitingEntries = waitingListTask.Result.ToList();
+            var tables = (await _tableService.GetAllAsync()).ToList();
+            var zones = (await _zoneService.GetAllAsync()).ToList();
+            var reservations = (await _reservationService.GetByDateAsync(today)).ToList();
+            var waitingEntries = (await _waitingListService.GetAllAsync()).ToList();
 
             var activeReservations = reservations.Count(r => r.Status == "Confirmada");
             var pendingReservations = reservations.Count(r => r.Status == "Pendiente");
