@@ -25,12 +25,23 @@ namespace RestauranteAPI.Services.Implementations
                 .Include(t => t.Zone)
                 .ToListAsync();
 
-            var dtos = new List<TableDto>();
-            foreach (var t in tables)
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var now = TimeOnly.FromDateTime(DateTime.UtcNow);
+
+            var allLocks = await _context.TableLocks
+                .Where(l => l.Date == today)
+                .ToListAsync();
+
+            var todayReservations = await _context.Reservations
+                .Where(r => r.Date == today)
+                .ToListAsync();
+
+            var dtos = tables.Select(t =>
             {
-                var status = await ComputeTableStatusAsync(t);
-                dtos.Add(MapToDto(t, status));
-            }
+                var status = ComputeStatusInMemory(t, today, now, allLocks, todayReservations);
+                return MapToDto(t, status);
+            }).ToList();
+
             return dtos;
         }
 
@@ -185,6 +196,28 @@ namespace RestauranteAPI.Services.Implementations
                 Status = status,
                 ZoneName = t.Zone?.Name ?? ""
             };
+        }
+
+        private static string ComputeStatusInMemory(
+            Models.Table table,
+            DateOnly today,
+            TimeOnly now,
+            List<TableLock> allLocks,
+            List<Reservation> todayReservations)
+        {
+            if (allLocks.Any(l => l.TableId == table.Id))
+                return "Bloqueada";
+
+            if (todayReservations.Any(r =>
+                    r.TableId == table.Id &&
+                    r.StartTime <= now &&
+                    r.EndTime >= now))
+                return "Ocupada";
+
+            if (todayReservations.Any(r => r.TableId == table.Id))
+                return "Reservada";
+
+            return "Libre";
         }
     }
 }
