@@ -4,8 +4,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using RestauranteAPI.Configuration;
 using RestauranteAPI.Data;
 using RestauranteAPI.DTOs;
 using RestauranteAPI.Models;
@@ -16,12 +16,12 @@ namespace RestauranteAPI.Services.Implementations
     public class AuthService : IAuthService
     {
         private readonly MyAppDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly JwtSettings _jwtSettings;
 
-        public AuthService(MyAppDbContext context, IConfiguration configuration)
+        public AuthService(MyAppDbContext context, JwtSettings jwtSettings)
         {
             _context = context;
-            _configuration = configuration;
+            _jwtSettings = jwtSettings;
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto loginDto)
@@ -92,8 +92,7 @@ namespace RestauranteAPI.Services.Implementations
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            string secret = _configuration["JwtSettings:SecretKey"] ?? "SuperSecretDefaultKeyMustBeLongEnough1234567890!";
-            byte[] key = Encoding.ASCII.GetBytes(secret);
+            byte[] key = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -104,9 +103,9 @@ namespace RestauranteAPI.Services.Implementations
                     new Claim(ClaimTypes.Role, user.Role),
                     new Claim(ClaimTypes.Email, user.Email)
                 }),
-                Expires = DateTime.UtcNow.AddDays(7),
-                Issuer = _configuration["JwtSettings:Issuer"],
-                Audience = _configuration["JwtSettings:Audience"],
+                Expires = DateTime.UtcNow.AddDays(_jwtSettings.ExpiryInDays),
+                Issuer = _jwtSettings.Issuer,
+                Audience = _jwtSettings.Audience,
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
                     SecurityAlgorithms.HmacSha256Signature

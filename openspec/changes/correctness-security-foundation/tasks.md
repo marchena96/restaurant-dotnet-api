@@ -8,10 +8,10 @@
 
 ## 2. Secure Configuration and Identity Semantics
 
-- [ ] 2.1 Bind and validate mandatory JWT settings once at startup and use the same validated settings for issuance and validation (SEC-001, SEC-002).
-- [ ] 2.2 Remove tracked JWT secret values and all hardcoded JWT fallbacks; add startup negative tests for missing or invalid settings (SEC-001, SEC-002).
-- [ ] 2.3 Externalize SQL Server connection configuration, remove machine-specific/deployable credentials from tracked settings, and add startup/configuration tests (SEC-007).
-- [ ] 2.4 Add a placeholders-only `.env.example`, ignore real `.env` values, and document ASP.NET Core environment variable names (SEC-001, SEC-007).
+- [x] 2.1 Bind and validate mandatory JWT settings once at startup and use the same validated settings for issuance and validation (SEC-001, SEC-002).
+- [x] 2.2 Remove tracked JWT secret values and all hardcoded JWT fallbacks; add startup negative tests for missing or invalid settings (SEC-001, SEC-002).
+- [x] 2.3 Externalize SQL Server connection configuration, remove machine-specific/deployable credentials from tracked settings, and add startup/configuration tests (SEC-007).
+- [x] 2.4 Add a placeholders-only `.env.example`, ignore real `.env` values, and document ASP.NET Core environment variable names (SEC-001, SEC-007).
 - [ ] 2.5 Align registration with `Person` as identity source and `UserAccount` as its optional account, without duplicating personal/contact fields; reject or ignore caller role input and create no caller-selected or privileged `UserRole` membership (SEC-003).
 - [ ] 2.6 Add registration and authorization matrix tests proving anonymous callers cannot obtain privileged access while separately trusted privileged authorization through `Role`, `Permission`, `UserRole`, and `RolePermission` still works without freezing canonical role names (SEC-003, QUA-001).
 - [ ] 2.7 Make logout response/documentation explicitly describe client-side token disposal and add tests proving behavior remains stateless until token expiry (SEC-004).
@@ -20,7 +20,7 @@
 ## 3. Migration and Seed Lifecycle
 
 - [x] 3.1 Remove `EnsureCreated()` from seed initialization and make EF Core migrations the sole schema creation/update mechanism (INF-012).
-- [ ] 3.2 Add an explicit migration execution mode with clear success/failure exit behavior and no normal request serving (INF-012).
+- [x] 3.2 Add an explicit migration execution mode with clear success/failure exit behavior and no normal request serving (INF-012).
 - [ ] 3.3 Keep required structural reference data deterministic and migration-safe; use separate `ReservationStatus` and `WaitingListStatus` catalogs and resolve business semantics by stable `Code`, never magic numeric IDs (INF-012).
 - [ ] 3.4 Separate people with optional client/account profiles, zones, turns, restaurant tables, and privileged-account demo data into an explicit idempotent development/test seed path (INF-012).
 - [ ] 3.5 Align affected EF model and forward migration work with the frozen 16-entity target: `Person` owns human data; `ClientProfile` and `UserAccount` reference it; authorization uses `Role`, `Permission`, `UserRole`, and `RolePermission`; `RestaurantTable` enforces `UNIQUE (ZoneId, TableNumber)`; no extra entity is added (INF-012).

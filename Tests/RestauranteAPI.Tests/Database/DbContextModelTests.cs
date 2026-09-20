@@ -9,7 +9,7 @@ public sealed class DbContextModelTests
     public void Current_sql_server_model_can_be_built()
     {
         var options = new DbContextOptionsBuilder<MyAppDbContext>()
-            .UseSqlServer("Server=localhost;Database=ModelOnly;User Id=unused;Password=unused;TrustServerCertificate=True")
+            .UseSqlServer("Server=model.invalid;Database=ModelOnly;Integrated Security=True;TrustServerCertificate=True")
             .Options;
 
         using var context = new MyAppDbContext(options);

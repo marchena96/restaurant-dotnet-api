@@ -2,23 +2,31 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using RestauranteAPI.Configuration;
 using RestauranteAPI.Data;
+using RestauranteAPI.Hosting;
 using RestauranteAPI.Middleware;
 using RestauranteAPI.Services.Implementations;
 using RestauranteAPI.Services.Interfaces;
 
-var builder = WebApplication.CreateBuilder(args);
+var migrationMode = MigrationMode.IsRequested(args);
+var builder = WebApplication.CreateBuilder(MigrationMode.RemoveArgument(args));
 
-// 1. Carga de configuración de JWT alineada con appsettings.json
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-string jwtSecret = jwtSettings["SecretKey"] ?? "SuperSecretDefaultKeyMustBeLongEnough1234567890!";
-
-// 2. Configuración del Acceso a Datos (SQL Server)
-var connectionString = builder.Configuration.GetConnectionString("ConnectionSql");
+var connectionString = RuntimeConfiguration.GetRequiredConnectionString(builder.Configuration);
 builder.Services.AddDbContext<MyAppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// 3. Inyección de Dependencias (Capa de Servicios en Inglés)
+if (migrationMode)
+{
+    await using var migrationApp = builder.Build();
+    await using var scope = migrationApp.Services.CreateAsyncScope();
+    var context = scope.ServiceProvider.GetRequiredService<MyAppDbContext>();
+    return await MigrationMode.RunAsync(context, migrationApp.Logger);
+}
+
+var jwtSettings = RuntimeConfiguration.GetRequiredJwtSettings(builder.Configuration);
+builder.Services.AddSingleton(jwtSettings);
+
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
@@ -29,7 +37,6 @@ builder.Services.AddScoped<ITurnService, TurnService>();
 builder.Services.AddScoped<ILockService, LockService>();
 builder.Services.AddScoped<IWaitingListService, WaitingListService>();
 
-// 4. Configuración de Autenticación JWT mediante Bearer header
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -39,18 +46,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
         };
-
-        // El token se lee automaticamente del header Authorization: Bearer <token>
     });
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
-// 5. Configuración de CORS con soporte explícito para Credenciales (Cookies)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -58,21 +62,18 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // Permite el intercambio de cookies HttpOnly
+              .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
-// 6. Inicialización de la Base de Datos y Sembrado de Datos (Seed Data)
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<MyAppDbContext>();
-    context.Database.Migrate();
     SeedData.Initialize(context);
 }
 
-// 7. Pipeline de Middlewares (El orden estricto garantiza la seguridad)
 app.UseGlobalExceptionMiddleware();
 
 app.UseCors("AllowFrontend");
@@ -82,4 +83,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
+return 0;

@@ -17,42 +17,39 @@ API REST para la gestión de reservas de un restaurante. Construida con ASP.NET 
 
 ## Configuración
 
-### 1. Conexión a base de datos
+La configuración sensible es obligatoria y se suministra fuera del repositorio. ASP.NET Core convierte `__` en `:` al leer variables de entorno.
 
-Editar `appsettings.json` con la cadena de conexión a SQL Server:
+| Variable de entorno | Uso |
+|---|---|
+| `ConnectionStrings__ConnectionSql` | Cadena de conexión completa a SQL Server |
+| `JwtSettings__SecretKey` | Clave de firma de al menos 32 bytes UTF-8 |
+| `JwtSettings__Issuer` | Emisor esperado del token |
+| `JwtSettings__Audience` | Audiencia esperada del token |
+| `JwtSettings__ExpiryInDays` | Vigencia entre 1 y 365 días |
 
-```json
-{
-  "ConnectionStrings": {
-    "ConnectionSql": "Server=TU_SERVER;Database=TheRestaurant_DB;Trusted_Connection=True;MultipleActiveResultSets=True;TrustServerCertificate=True"
-  }
-}
+`.env.example` contiene solamente marcadores de posición. ASP.NET Core no carga archivos `.env` automáticamente; configure estas variables mediante el shell, el IDE o el entorno de despliegue. Los archivos `.env` reales no se versionan.
+
+### 1. Migraciones
+
+Con `ConnectionStrings__ConnectionSql` configurada, aplicar las migraciones y salir:
+
+```bash
+dotnet run -- --migrate
 ```
 
-### 2. JWT
+El proceso devuelve código `0` si termina correctamente y un código distinto de cero si falla. Este modo no inicia el servidor HTTP.
 
-```json
-{
-  "JwtSettings": {
-    "SecretKey": "Tu_Clave_Super_Secreta_De_Al_Menos_32_Caracteres_Para_JWT",
-    "Issuer": "RestauranteAPI",
-    "Audience": "RestauranteApp",
-    "ExpiryInDays": 7
-  }
-}
-```
+### 2. Ejecución de la API
 
-### 3. Ejecución
+Configure todas las variables anteriores y ejecute:
 
 ```bash
 dotnet run
 ```
 
-La API corre en `http://localhost:5052` por defecto.
+La API corre en `http://localhost:5052` por defecto. El inicio normal no aplica migraciones; ejecute primero el modo de migración.
 
-Las migraciones se aplican automáticamente al iniciar.
-
-### 4. Datos semilla
+### 3. Datos semilla
 
 Al iniciar se crean automáticamente:
 
