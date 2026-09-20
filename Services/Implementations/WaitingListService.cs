@@ -63,6 +63,7 @@ namespace RestauranteAPI.Services.Implementations
                 EndTime = wDto.EndTime,
                 PartySize = wDto.PartySize,
                 Status = "Waiting",
+                WaitingListStatusId = (await GetWaitingListStatusAsync(V2StatusCodes.Waiting)).WaitingListStatusId,
                 PreferredZone = wDto.PreferredZone
             };
 
@@ -84,7 +85,9 @@ namespace RestauranteAPI.Services.Implementations
             w.EndTime = wDto.EndTime;
             w.PartySize = wDto.PartySize;
             w.ClientId = wDto.ClientId;
-            w.Status = wDto.Status;
+            var updateStatus = await GetWaitingListStatusAsync(StatusToDb.TryGetValue(wDto.Status, out var code) ? code.ToUpperInvariant() : throw new ArgumentException($"Invalid status: {wDto.Status}."));
+            w.Status = updateStatus.Name;
+            w.WaitingListStatusId = updateStatus.WaitingListStatusId;
             w.PreferredZone = wDto.PreferredZone;
 
             await _context.SaveChangesAsync();
@@ -111,7 +114,9 @@ namespace RestauranteAPI.Services.Implementations
             if (!StatusToDb.TryGetValue(status, out var dbStatus))
                 throw new ArgumentException($"Invalid status: {status}. Valid values: EnEspera, Asignado, Cancelado.");
 
-            w.Status = dbStatus;
+            var waitingStatus = await GetWaitingListStatusAsync(dbStatus.ToUpperInvariant());
+            w.Status = waitingStatus.Name;
+            w.WaitingListStatusId = waitingStatus.WaitingListStatusId;
             await _context.SaveChangesAsync();
             return MapToDto(w);
         }
@@ -154,14 +159,12 @@ namespace RestauranteAPI.Services.Implementations
             if (isLocked)
                 throw new InvalidOperationException("The table has an active lock during the requested schedule.");
 
-            var activeStatus = await _context.Statuses.FirstOrDefaultAsync(s => s.Name == "Active");
-            if (activeStatus == null)
-                throw new InvalidOperationException("Required 'Active' status is missing.");
+            var activeStatus = await GetReservationStatusAsync(V2StatusCodes.Active);
 
             var isReserved = await _context.Reservations.AnyAsync(r =>
                 r.TableId == tableId &&
                 r.Date == entry.Date &&
-                r.StatusId == activeStatus.Id &&
+                r.ReservationStatus.BlocksAvailability &&
                 entry.StartTime < r.EndTime &&
                 entry.EndTime > r.StartTime
             );
@@ -177,7 +180,8 @@ namespace RestauranteAPI.Services.Implementations
                 EndTime = entry.EndTime,
                 GuestCount = entry.PartySize,
                 TableId = tableId,
-                StatusId = activeStatus.Id,
+                StatusId = activeStatus.LegacyStatusId,
+                ReservationStatusId = activeStatus.Status.ReservationStatusId,
                 TurnId = 1
             };
 
@@ -186,6 +190,19 @@ namespace RestauranteAPI.Services.Implementations
             await _context.SaveChangesAsync();
 
             return true;
+        }
+
+        private async Task<WaitingListStatus> GetWaitingListStatusAsync(string code) =>
+            await _context.WaitingListStatuses.SingleOrDefaultAsync(s => s.Code == code)
+                ?? throw new InvalidOperationException($"Required waiting-list status code '{code}' is missing.");
+
+        private async Task<(ReservationStatus Status, int LegacyStatusId)> GetReservationStatusAsync(string code)
+        {
+            var status = await _context.ReservationStatuses.SingleOrDefaultAsync(s => s.Code == code)
+                ?? throw new InvalidOperationException($"Required reservation status code '{code}' is missing.");
+            var legacyStatusId = await _context.Statuses.Where(s => s.Name == status.Name).Select(s => (int?)s.Id).SingleOrDefaultAsync()
+                ?? throw new InvalidOperationException($"Legacy reservation status '{status.Name}' is missing.");
+            return (status, legacyStatusId);
         }
 
         private WaitingListDto MapToDto(WaitingListEntry w)

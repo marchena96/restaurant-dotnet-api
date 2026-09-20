@@ -21,6 +21,9 @@ namespace RestauranteAPI.Models
         public int StatusId { get; set; }
         public Status Status { get; set; } = null!;
 
+        public int ReservationStatusId { get; set; }
+        public ReservationStatus ReservationStatus { get; set; } = null!;
+
         public int TurnId { get; set; }
         public Turn Turn { get; set; } = null!;
     }

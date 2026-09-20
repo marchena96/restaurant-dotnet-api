@@ -109,7 +109,7 @@ namespace RestauranteAPI.Services.Implementations
         public async Task<IEnumerable<TableDto>> GetAvailableTablesAsync(DateOnly date, TimeOnly startTime, TimeOnly endTime)
         {
             var reservedTableIds = await _context.Reservations
-                .Where(r => r.Date == date && r.StartTime < endTime && r.EndTime > startTime)
+                .Where(r => r.Date == date && r.ReservationStatus.BlocksAvailability && r.StartTime < endTime && r.EndTime > startTime)
                 .Select(r => r.TableId)
                 .Distinct()
                 .ToListAsync();
@@ -136,6 +136,7 @@ namespace RestauranteAPI.Services.Implementations
             var hasReservation = await _context.Reservations.AnyAsync(r =>
                 r.TableId == tableId &&
                 r.Date == date &&
+                r.ReservationStatus.BlocksAvailability &&
                 r.StartTime < endTime &&
                 r.EndTime > startTime);
 
@@ -173,13 +174,14 @@ namespace RestauranteAPI.Services.Implementations
             var isOccupied = await _context.Reservations.AnyAsync(r =>
                 r.TableId == table.Id &&
                 r.Date == today &&
+                r.ReservationStatus.BlocksAvailability &&
                 r.StartTime <= now &&
                 r.EndTime >= now);
 
             if (isOccupied) return "Ocupada";
 
             var hasReservationToday = await _context.Reservations.AnyAsync(r =>
-                r.TableId == table.Id && r.Date == today);
+                r.TableId == table.Id && r.Date == today && r.ReservationStatus.BlocksAvailability);
 
             if (hasReservationToday) return "Reservada";
 

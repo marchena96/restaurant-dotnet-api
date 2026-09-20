@@ -80,6 +80,12 @@ public sealed class SqlServerDatabaseFixture : IAsyncLifetime
         await context.Database.MigrateAsync(migration);
     }
 
+    public async Task ExecuteHistoricalSqlAsync(FormattableString sql)
+    {
+        await using var context = CreateDbContext();
+        await context.Database.ExecuteSqlAsync(sql);
+    }
+
     private async Task DropDatabaseAsync()
     {
         if (string.IsNullOrWhiteSpace(_masterConnectionString))

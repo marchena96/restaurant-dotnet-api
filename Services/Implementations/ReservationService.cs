@@ -32,7 +32,7 @@ namespace RestauranteAPI.Services.Implementations
             var reservations = await _context.Reservations
                 .Include(r => r.Client)
                 .Include(r => r.Table).ThenInclude(t => t.Zone)
-                .Include(r => r.Status)
+                .Include(r => r.ReservationStatus)
                 .Include(r => r.Turn)
                 .ToListAsync();
 
@@ -44,7 +44,7 @@ namespace RestauranteAPI.Services.Implementations
             var r = await _context.Reservations
                 .Include(r => r.Client)
                 .Include(r => r.Table).ThenInclude(t => t.Zone)
-                .Include(r => r.Status)
+                .Include(r => r.ReservationStatus)
                 .Include(r => r.Turn)
                 .FirstOrDefaultAsync(res => res.Id == id);
 
@@ -95,13 +95,10 @@ namespace RestauranteAPI.Services.Implementations
                 throw new InvalidOperationException("The table is currently locked. The client has been placed on the waiting list.");
             }
 
-            var cancelledStatus = await _context.Statuses.FirstOrDefaultAsync(s => s.Name == "Cancelled");
-            int cancelledId = cancelledStatus?.Id ?? 4;
-
             var isReserved = await _context.Reservations.AnyAsync(res =>
                 res.TableId == request.TableId &&
                 res.Date == date &&
-                res.StatusId != cancelledId &&
+                res.ReservationStatus.BlocksAvailability &&
                 startTime < res.EndTime &&
                 endTime > res.StartTime);
 
@@ -111,6 +108,7 @@ namespace RestauranteAPI.Services.Implementations
                 throw new InvalidOperationException("The table is already reserved. The client has been placed on the waiting list.");
             }
 
+            var pendingStatus = await GetReservationStatusAsync(V2StatusCodes.Pending);
             var reservation = new Reservation
             {
                 Date = date,
@@ -119,7 +117,8 @@ namespace RestauranteAPI.Services.Implementations
                 GuestCount = request.GuestCount,
                 ClientId = request.ClientId,
                 TableId = request.TableId,
-                StatusId = 2,
+                StatusId = pendingStatus.LegacyStatusId,
+                ReservationStatusId = pendingStatus.Status.ReservationStatusId,
                 TurnId = 1,
                 CreatedAt = DateTime.UtcNow
             };
@@ -163,7 +162,7 @@ namespace RestauranteAPI.Services.Implementations
                 .Where(r => r.ClientId == clientId)
                 .Include(r => r.Client)
                 .Include(r => r.Table).ThenInclude(t => t.Zone)
-                .Include(r => r.Status)
+                .Include(r => r.ReservationStatus)
                 .Include(r => r.Turn)
                 .ToListAsync();
 
@@ -176,7 +175,7 @@ namespace RestauranteAPI.Services.Implementations
                 .Where(r => r.Date == date)
                 .Include(r => r.Client)
                 .Include(r => r.Table).ThenInclude(t => t.Zone)
-                .Include(r => r.Status)
+                .Include(r => r.ReservationStatus)
                 .Include(r => r.Turn)
                 .ToListAsync();
 
@@ -188,11 +187,13 @@ namespace RestauranteAPI.Services.Implementations
             var r = await _context.Reservations.FirstOrDefaultAsync(res => res.Id == id);
             if (r == null) return null;
 
-            var statusExists = await _context.Statuses.AnyAsync(s => s.Id == statusId);
-            if (!statusExists)
+            var legacyStatus = await _context.Statuses.FirstOrDefaultAsync(s => s.Id == statusId);
+            if (legacyStatus == null)
                 throw new ArgumentException("The specified status does not exist.");
 
+            var v2Status = await GetReservationStatusAsync(V2StatusCodes.ReservationFromLegacyName(legacyStatus.Name));
             r.StatusId = statusId;
+            r.ReservationStatusId = v2Status.Status.ReservationStatusId;
             await _context.SaveChangesAsync();
 
             return await GetByIdAsync(id);
@@ -206,7 +207,7 @@ namespace RestauranteAPI.Services.Implementations
                 Date = r.Date.ToString("yyyy-MM-dd"),
                 ReservationTime = r.StartTime.ToString("HH:mm"),
                 GuestCount = r.GuestCount,
-                Status = StatusMap.GetValueOrDefault(r.Status?.Name ?? "", r.Status?.Name ?? ""),
+                Status = StatusMap.GetValueOrDefault(r.ReservationStatus?.Name ?? "", r.ReservationStatus?.Name ?? ""),
                 CreatedAt = r.CreatedAt.ToString("o"),
                 ClientId = r.ClientId,
                 ClientName = r.Client != null ? $"{r.Client.FirstName} {r.Client.LastName}" : "",
@@ -227,10 +228,27 @@ namespace RestauranteAPI.Services.Implementations
                 StartTime = startTime,
                 EndTime = endTime,
                 PartySize = request.GuestCount,
-                Status = "Waiting"
+                Status = "Waiting",
+                WaitingListStatusId = (await GetWaitingListStatusAsync(V2StatusCodes.Waiting)).WaitingListStatusId
             };
             await _context.WaitingLists.AddAsync(wEntry);
             await _context.SaveChangesAsync();
         }
+
+        private async Task<(ReservationStatus Status, int LegacyStatusId)> GetReservationStatusAsync(string code)
+        {
+            var status = await _context.ReservationStatuses.SingleOrDefaultAsync(s => s.Code == code)
+                ?? throw new InvalidOperationException($"Required reservation status code '{code}' is missing.");
+            var legacyStatusId = await _context.Statuses
+                .Where(s => s.Name == status.Name)
+                .Select(s => (int?)s.Id)
+                .SingleOrDefaultAsync()
+                ?? throw new InvalidOperationException($"Legacy reservation status '{status.Name}' is missing.");
+            return (status, legacyStatusId);
+        }
+
+        private async Task<WaitingListStatus> GetWaitingListStatusAsync(string code) =>
+            await _context.WaitingListStatuses.SingleOrDefaultAsync(s => s.Code == code)
+                ?? throw new InvalidOperationException($"Required waiting-list status code '{code}' is missing.");
     }
 }

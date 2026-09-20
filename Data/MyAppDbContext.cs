@@ -26,6 +26,8 @@ namespace RestauranteAPI.Data
         public DbSet<UserRole> UserRoles { get; set; } = null!;
         public DbSet<RolePermission> RolePermissions { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<ReservationStatus> ReservationStatuses { get; set; } = null!;
+        public DbSet<WaitingListStatus> WaitingListStatuses { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -166,6 +168,28 @@ namespace RestauranteAPI.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity<ReservationStatus>(entity =>
+            {
+                entity.ToTable("ReservationStatus");
+                entity.HasKey(status => status.ReservationStatusId);
+                entity.Property(status => status.Code).HasMaxLength(50).IsRequired();
+                entity.Property(status => status.Name).HasMaxLength(100).IsRequired();
+                entity.HasIndex(status => status.Code).IsUnique();
+                entity.ToTable(table => table.HasCheckConstraint(
+                    "CK_ReservationStatus_SortOrder", "[SortOrder] >= 0"));
+            });
+
+            modelBuilder.Entity<WaitingListStatus>(entity =>
+            {
+                entity.ToTable("WaitingListStatus");
+                entity.HasKey(status => status.WaitingListStatusId);
+                entity.Property(status => status.Code).HasMaxLength(50).IsRequired();
+                entity.Property(status => status.Name).HasMaxLength(100).IsRequired();
+                entity.HasIndex(status => status.Code).IsUnique();
+                entity.ToTable(table => table.HasCheckConstraint(
+                    "CK_WaitingListStatus_SortOrder", "[SortOrder] >= 0"));
+            });
+
             // 1:N relationships with DeleteBehavior.Restrict
 
             // Zone -> Table
@@ -180,6 +204,18 @@ namespace RestauranteAPI.Data
                 .HasOne(r => r.Client)
                 .WithMany(c => c.Reservations)
                 .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Reservation>()
+                .HasOne(r => r.ReservationStatus)
+                .WithMany(s => s.Reservations)
+                .HasForeignKey(r => r.ReservationStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<WaitingListEntry>()
+                .HasOne(w => w.WaitingListStatus)
+                .WithMany(s => s.WaitingListEntries)
+                .HasForeignKey(w => w.WaitingListStatusId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Client -> WaitingList

@@ -21,7 +21,7 @@
 
 - [x] 3.1 Remove `EnsureCreated()` from seed initialization and make EF Core migrations the sole schema creation/update mechanism (INF-012).
 - [x] 3.2 Add an explicit migration execution mode with clear success/failure exit behavior and no normal request serving (INF-012).
-- [ ] 3.3 Keep required structural reference data deterministic and migration-safe; use separate `ReservationStatus` and `WaitingListStatus` catalogs and resolve business semantics by stable `Code`, never magic numeric IDs (INF-012).
+- [x] 3.3 Keep required structural reference data deterministic and migration-safe; use separate `ReservationStatus` and `WaitingListStatus` catalogs and resolve business semantics by stable `Code`, never magic numeric IDs (INF-012).
 - [ ] 3.4 Separate people with optional client/account profiles, zones, turns, restaurant tables, and privileged-account demo data into an explicit idempotent development/test seed path (INF-012).
 - [ ] 3.5 Align affected EF model and forward migration work with the frozen 16-entity target: `Person` owns human data; `ClientProfile` and `UserAccount` reference it; authorization uses `Role`, `Permission`, `UserRole`, and `RolePermission`; `RestaurantTable` enforces `UNIQUE (ZoneId, TableNumber)`; no extra entity is added (INF-012).
 - [ ] 3.6 Represent normal turns only by exact unique active-turn containment, persist only nullable explicit `Reservation.AssignedTurnId`, and add neither legacy `Reservation.TurnId` nor `DerivedTurnId` (INF-012).
