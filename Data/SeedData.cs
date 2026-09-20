@@ -8,8 +8,6 @@ namespace RestauranteAPI.Data
     {
         public static void Initialize(MyAppDbContext context)
         {
-            context.Database.EnsureCreated();
-
             // CLIENTS (independent)
             if (!context.Clients.Any())
             {
