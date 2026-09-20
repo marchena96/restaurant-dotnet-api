@@ -73,6 +73,13 @@ public sealed class SqlServerDatabaseFixture : IAsyncLifetime
         return new MyAppDbContext(options);
     }
 
+    public async Task ResetToMigrationAsync(string migration)
+    {
+        await using var context = CreateDbContext();
+        await context.Database.EnsureDeletedAsync();
+        await context.Database.MigrateAsync(migration);
+    }
+
     private async Task DropDatabaseAsync()
     {
         if (string.IsNullOrWhiteSpace(_masterConnectionString))
