@@ -1,0 +1,284 @@
+Project RestaurantRelationalModelV2 {
+  database_type: 'SQL Server'
+  Note: '''
+    LOGICAL TARGET: Restaurant Relational Model v2.0.
+    LOGICAL_MODEL = FROZEN
+    NORMALIZATION_GATE = PASS
+    PHYSICAL_IMPLEMENTATION = NOT_STARTED
+    EF_CORE_MIGRATIONS = NOT_STARTED
+
+    DBML does not exactly express SQL Server filtered unique indexes or CHECK constraints.
+    Relevant requirements are retained in table and column notes and must be implemented only after Migration Impact Analysis.
+  '''
+}
+
+Table Person {
+  PersonId int [pk, increment]
+  IdentificationNumber nvarchar(50) [note: 'Nullable; must be unique when non-null. Physical SQL Server target should use suitable non-null uniqueness semantics, such as a filtered unique index.']
+  FirstName nvarchar(100) [not null]
+  LastName nvarchar(100) [not null]
+  Email nvarchar(254) [note: 'Nullable contact information; not globally unique and not assumed to be a login identifier.']
+  PhoneNumber nvarchar(30)
+  IsActive bit [not null, default: true]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  Note: 'Human identity and contact source of truth. IdentificationNumber, names, email, and phone are personal data/PII.'
+}
+
+Table UserAccount {
+  UserId int [pk, increment]
+  PersonId int [not null, unique]
+  Username nvarchar(100) [not null, unique]
+  PasswordHash nvarchar(255) [not null, note: 'Security-sensitive; never write to audit details.']
+  IsActive bit [not null]
+  FailedLoginAttempts int [not null, default: 0]
+  LockedUntilUtc datetime2(3)
+  PasswordChangedAtUtc datetime2(3)
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  Note: 'CHECK FailedLoginAttempts >= 0. No Role or RoleId column; role membership uses UserRole.'
+}
+
+Table Role {
+  RoleId int [pk, increment]
+  Code nvarchar(80) [not null, unique]
+  Name nvarchar(100) [not null]
+  Description nvarchar(300)
+  IsActive bit [not null]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+
+  Note: 'Canonical restaurant role names are not frozen by this logical model.'
+}
+
+Table Permission {
+  PermissionId int [pk, increment]
+  Code nvarchar(120) [not null, unique]
+  Name nvarchar(120) [not null]
+  Description nvarchar(300)
+  IsActive bit [not null]
+
+  Note: 'Permission vocabulary examples in the data dictionary are illustrative and non-frozen.'
+}
+
+Table UserRole {
+  UserId int [not null]
+  RoleId int [not null]
+  AssignedAtUtc datetime2(3) [not null]
+  AssignedByUserId int
+
+  indexes {
+    (UserId, RoleId) [pk]
+  }
+
+  Note: 'Current effective role membership. Composite primary key; no surrogate UserRoleId. Assignment and revocation history belongs in AuditLog.'
+}
+
+Table RolePermission {
+  RoleId int [not null]
+  PermissionId int [not null]
+
+  indexes {
+    (RoleId, PermissionId) [pk]
+  }
+
+  Note: 'Current effective authorization state. Composite primary key; no surrogate RolePermissionId. Grant and revocation history belongs in AuditLog.'
+}
+
+Table AuditLog {
+  AuditLogId bigint [pk, increment]
+  UserId int
+  ActionCode nvarchar(120) [not null]
+  EntityName nvarchar(100) [not null]
+  EntityId nvarchar(100)
+  OccurredAtUtc datetime2(3) [not null]
+  CorrelationId uniqueidentifier
+  IpAddress varchar(45)
+  Details nvarchar(max) [note: 'Must not contain plaintext passwords, PasswordHash values, JWTs, connection strings, or secrets.']
+
+  indexes {
+    (UserId, OccurredAtUtc)
+    (EntityName, EntityId, OccurredAtUtc)
+  }
+
+  Note: 'Append-only during normal operation. EntityName plus EntityId is a deliberate polymorphic target, not a relational foreign key. UserId may be null for system or anonymous events.'
+}
+
+Table ClientProfile {
+  ClientId int [pk, increment]
+  PersonId int [not null, unique]
+  IsActive bit [not null]
+  CustomerSinceUtc datetime2(3) [not null]
+  Notes nvarchar(500)
+  UpdatedAtUtc datetime2(3) [not null]
+
+  Note: 'Customer participation profile. Personal identity and contact data remains in Person.'
+}
+
+Table Zone {
+  ZoneId int [pk, increment]
+  Code nvarchar(50) [not null, unique]
+  Name nvarchar(100) [not null]
+  Description nvarchar(300)
+  IsActive bit [not null]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  Note: 'Single canonical zone entity for restaurant tables and waiting-list preferences.'
+}
+
+Table RestaurantTable {
+  TableId int [pk, increment]
+  ZoneId int [not null]
+  TableNumber nvarchar(20) [not null]
+  Capacity int [not null]
+  IsActive bit [not null]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  indexes {
+    (ZoneId, TableNumber) [unique]
+  }
+
+  Note: 'CHECK Capacity > 0. TableNumber is unique only within ZoneId.'
+}
+
+Table Turn {
+  TurnId int [pk, increment]
+  Code nvarchar(50) [not null, unique]
+  Name nvarchar(100) [not null]
+  StartTime time(0) [not null]
+  EndTime time(0) [not null]
+  IsActive bit [not null]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+
+  Note: 'CHECK StartTime < EndTime. Derived Turn exists only when exactly one active Turn fully contains Reservation.StartTime through Reservation.EndTime; zero matches means null and multiple matches are invalid/ambiguous. Enforcement is deferred to physical/application design.'
+}
+
+Table TableLock {
+  TableLockId int [pk, increment]
+  TableId int [not null]
+  LockDate date [not null]
+  StartTime time(0) [not null]
+  EndTime time(0) [not null]
+  Reason nvarchar(300) [not null]
+  CreatedByUserId int [not null]
+  IsActive bit [not null]
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  indexes {
+    (TableId, LockDate, StartTime, EndTime)
+  }
+
+  Note: 'CHECK StartTime < EndTime. No TurnId is stored.'
+}
+
+Table ReservationStatus {
+  ReservationStatusId int [pk, increment]
+  Code nvarchar(50) [not null, unique]
+  Name nvarchar(100) [not null]
+  BlocksAvailability bit [not null]
+  IsTerminal bit [not null]
+  SortOrder int [not null]
+  IsActive bit [not null]
+
+  Note: 'CHECK SortOrder >= 0. Code replaces magic numeric status semantics; exact status IDs are not frozen.'
+}
+
+Table Reservation {
+  ReservationId int [pk, increment]
+  ClientId int [not null]
+  TableId int [not null]
+  ReservationStatusId int [not null]
+  AssignedTurnId int [note: 'Nullable explicit business/admin assignment or override only; authoritative when present. When null, use uniquely derived Turn if one exists. Derived Turn is never persisted.']
+  SourceWaitingListEntryId int [note: 'Nullable; must be unique when non-null. Physical SQL Server target should use suitable non-null uniqueness semantics, such as a filtered unique index.']
+  ReservationDate date [not null]
+  StartTime time(0) [not null]
+  EndTime time(0) [not null]
+  GuestCount int [not null]
+  Notes nvarchar(500)
+  CreatedByUserId int
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  indexes {
+    (TableId, ReservationDate, ReservationStatusId, StartTime, EndTime)
+  }
+
+  Note: 'CHECK StartTime < EndTime and GuestCount > 0. SourceWaitingListEntryId is the only persisted promotion link. No DerivedTurnId or TurnAssignmentMode exists. Operational index does not itself prevent interval overlap.'
+}
+
+Table WaitingListStatus {
+  WaitingListStatusId int [pk, increment]
+  Code nvarchar(50) [not null, unique]
+  Name nvarchar(100) [not null]
+  IsTerminal bit [not null]
+  SortOrder int [not null]
+  IsActive bit [not null]
+
+  Note: 'CHECK SortOrder >= 0. Separate semantic domain from ReservationStatus.'
+}
+
+Table WaitingListEntry {
+  WaitingListEntryId int [pk, increment]
+  ClientId int [not null]
+  PreferredZoneId int [note: 'Nullable FK to the single canonical Zone table.']
+  WaitingListStatusId int [not null]
+  RequestedDate date [not null]
+  StartTime time(0) [not null]
+  EndTime time(0) [not null]
+  PartySize int [not null]
+  Notes nvarchar(500)
+  CreatedByUserId int
+  CreatedAtUtc datetime2(3) [not null]
+  UpdatedAtUtc datetime2(3) [not null]
+  RowVersion rowversion [not null]
+
+  indexes {
+    (WaitingListStatusId, RequestedDate, StartTime, EndTime)
+  }
+
+  Note: 'CHECK StartTime < EndTime and PartySize > 0. No PreferredZone string and no PromotedReservationId exist.'
+}
+
+Ref: Person.PersonId - UserAccount.PersonId
+Ref: Person.PersonId - ClientProfile.PersonId
+
+Ref: UserAccount.UserId < UserRole.UserId
+Ref: Role.RoleId < UserRole.RoleId
+Ref: UserAccount.UserId < UserRole.AssignedByUserId
+
+Ref: Role.RoleId < RolePermission.RoleId
+Ref: Permission.PermissionId < RolePermission.PermissionId
+
+Ref: UserAccount.UserId < AuditLog.UserId
+
+Ref: Zone.ZoneId < RestaurantTable.ZoneId
+Ref: Zone.ZoneId < WaitingListEntry.PreferredZoneId
+
+Ref: ClientProfile.ClientId < Reservation.ClientId
+Ref: ClientProfile.ClientId < WaitingListEntry.ClientId
+
+Ref: RestaurantTable.TableId < Reservation.TableId
+Ref: RestaurantTable.TableId < TableLock.TableId
+
+Ref: ReservationStatus.ReservationStatusId < Reservation.ReservationStatusId
+Ref: WaitingListStatus.WaitingListStatusId < WaitingListEntry.WaitingListStatusId
+
+Ref: Turn.TurnId < Reservation.AssignedTurnId
+
+Ref: UserAccount.UserId < TableLock.CreatedByUserId
+Ref: UserAccount.UserId < Reservation.CreatedByUserId
+Ref: UserAccount.UserId < WaitingListEntry.CreatedByUserId
+
+Ref: WaitingListEntry.WaitingListEntryId - Reservation.SourceWaitingListEntryId
